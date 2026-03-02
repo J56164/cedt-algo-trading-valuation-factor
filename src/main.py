@@ -1,10 +1,9 @@
-from setup import setup
-from get_data import get_data
+from src.setup import setup
+from src.config import DATABASE_PATH
 
 
 def main():
-    setup()
-    get_data()
+    setup(DATABASE_PATH.absolute().as_posix())
 
 
 if __name__ == "__main__":
