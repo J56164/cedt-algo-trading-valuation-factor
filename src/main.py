@@ -1,4 +1,4 @@
-from src.setup import setup
+from src.setup.setup import setup
 from src.config import DATABASE_PATH
 
 
