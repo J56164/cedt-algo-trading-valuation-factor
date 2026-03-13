@@ -1,0 +1,1 @@
+See: [Valuation factor slide](https://www.canva.com/design/DAHDSwj-3yU/RxMftNGQnDwha8HBaUItjA/edit)
