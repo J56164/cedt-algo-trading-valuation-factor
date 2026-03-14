@@ -40,21 +40,25 @@ def get_score(
 
 
 def _get_buy_signal(
-    score: pd.DataFrame,
+    score_df: pd.DataFrame,
 ):
     # Long top 20%
-    pct_rank = score.rank(axis=1, pct=True)
-    buy_signal = pd.DataFrame(data=False, index=score.index, columns=score.columns)
+    pct_rank = score_df.rank(axis=1, pct=True)
+    buy_signal = pd.DataFrame(
+        data=False, index=score_df.index, columns=score_df.columns
+    )
     buy_signal[pct_rank >= 0.8] = True
     return buy_signal
 
 
 def _get_sell_signal(
-    score: pd.DataFrame,
+    score_df: pd.DataFrame,
 ):
     # Short bottom 20%
-    pct_rank = score.rank(axis=1, pct=True)
-    sell_signal = pd.DataFrame(data=False, index=score.index, columns=score.columns)
+    pct_rank = score_df.rank(axis=1, pct=True)
+    sell_signal = pd.DataFrame(
+        data=False, index=score_df.index, columns=score_df.columns
+    )
     sell_signal[pct_rank <= 0.2] = True
     return sell_signal
 
@@ -64,52 +68,56 @@ def _filter_signal(ssc: ez.SETSignalCreator, signal_df: pd.DataFrame):
 
 
 def _rank_signal(
-    ssc: ez.SETSignalCreator, signal_df: pd.DataFrame, close_df: pd.DataFrame
+    ssc: ez.SETSignalCreator,
+    signal_df: pd.DataFrame,
+    score_df: pd.DataFrame,
 ):
-    pass  # TODO
-    # # Calculate rate of change
-    # factor_df = (close_df - close_df.shift(252)) / close_df.shift(252)
+    factor_df = score_df
 
-    # factor_df = pd.DataFrame(
-    #     np.where((signal_df > 0), factor_df, np.nan),
-    #     columns=factor_df.columns,
-    #     index=factor_df.index,
-    # )
+    factor_df = pd.DataFrame(
+        np.where((signal_df > 0), factor_df, np.nan),
+        columns=factor_df.columns,
+        index=factor_df.index,
+    )
 
-    # POS_NUM = 20  # TODO: Remove magic number
-    # signal_df = ssc.rank(factor_df=factor_df, quantity=POS_NUM, ascending=False)
+    POS_NUM = 20  # TODO: Remove magic number
+    signal_df = ssc.rank(factor_df=score_df, quantity=POS_NUM, ascending=False)
 
-    # return signal_df
+    return signal_df
 
 
 # TODO: Rename function
 def _handle_sign_signal(ssc: ez.SETSignalCreator, signal_df: pd.DataFrame):
-    pass  # TODO
-    # lookahead_signal = ssc.screen_universe(signal_df, mask_value=-1).shift(
-    #     -2
-    # )  # TODO: Remove magic number
+    lookahead_signal = ssc.screen_universe(signal_df, mask_value=-1).shift(
+        -2
+    )  # TODO: Remove magic number
 
-    # signal_df = pd.DataFrame(
-    #     np.where((lookahead_signal == -1), -1, signal_df),
-    #     columns=signal_df.columns,
-    #     index=signal_df.index,
-    # )
+    signal_df = pd.DataFrame(
+        np.where((lookahead_signal == -1), -1, signal_df),
+        columns=signal_df.columns,
+        index=signal_df.index,
+    )
 
-    # return signal_df
+    return signal_df
 
 
 def valuation_strategy(
     ssc: ez.SETSignalCreator,
 ):
-    pass  # TODO
-    # buy_signal_df = _get_buy_signal(ssc, close_df, high_df, low_df)
-    # sell_signal_df = _get_sell_signal(ssc, close_df, high_df, low_df)
+    pb, pe, ev_div_ebitda, fcf_yield = get_valuation_metrics(ssc)
+    score_df = get_score(pb, pe, ev_div_ebitda, fcf_yield)
+    buy_signal_df = _get_buy_signal(
+        score_df,
+    )
+    sell_signal_df = _get_sell_signal(
+        score_df,
+    )
 
-    # # TODO: Remove magic number
-    # signal_df = buy_signal_df.astype(int) + sell_signal_df.astype(int) * -10
+    # TODO: Remove magic number
+    signal_df = buy_signal_df.astype(int) + sell_signal_df.astype(int) * -10
 
-    # signal_df = _filter_signal(ssc, signal_df)
-    # signal_df = _rank_signal(ssc, signal_df, close_df)
-    # signal_df = _handle_sign_signal(ssc, signal_df)
+    signal_df = _filter_signal(ssc, signal_df)
+    signal_df = _rank_signal(ssc, signal_df, score_df)
+    signal_df = _handle_sign_signal(ssc, signal_df)
 
-    # return signal_df
+    return signal_df
