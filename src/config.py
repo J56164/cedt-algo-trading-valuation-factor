@@ -1,3 +1,3 @@
-from pathlib import Path
+from src.utils import find_project_root
 
-DATABASE_PATH = Path("../data/ezyquant.db")
+DATABASE_PATH = find_project_root() / "data/ezyquant.db"
