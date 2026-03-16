@@ -1,3 +1,22 @@
+# CEDT Algo trading - Valuation Factor
+
+## Installation
+
+Install [uv](https://docs.astral.sh/uv/), then run:
+
+```sh
+uv sync
+```
+
+To run:
+
+- Navigate to a notebook
+- If you're in VSCode, Ctrl+Shift+P -> Python: Select Interpreter
+- Run the notebook in VSCode
+
+
+## References
+
 See: [Valuation factor slide](https://www.canva.com/design/DAHDSwj-3yU/RxMftNGQnDwha8HBaUItjA/edit)
 
 - [Price-to-Book (P/B) Ratio: Meaning, Formula, and Example](https://www.investopedia.com/terms/p/price-to-bookratio.asp)
