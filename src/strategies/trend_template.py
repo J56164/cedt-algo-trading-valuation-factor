@@ -115,7 +115,7 @@ def _handle_sign_signal(ssc: ez.SETSignalCreator, signal_df: pd.DataFrame):
     return signal_df
 
 
-def trend_template(
+def get_signal(
     ssc: ez.SETSignalCreator,
     close_df: pd.DataFrame,
     high_df: pd.DataFrame,

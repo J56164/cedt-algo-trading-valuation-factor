@@ -102,7 +102,7 @@ def _handle_sign_signal(ssc: ez.SETSignalCreator, signal_df: pd.DataFrame):
     return signal_df
 
 
-def valuation_strategy(
+def get_signal(
     ssc: ez.SETSignalCreator,
 ):
     pb, pe, ev_div_ebitda, fcf_yield = get_valuation_metrics(ssc)
