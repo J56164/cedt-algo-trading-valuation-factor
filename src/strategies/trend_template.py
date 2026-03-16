@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import ezyquant as ez
+from ezyquant.backtesting import Context
 
 
 def _get_buy_signal(
@@ -131,3 +132,15 @@ def trend_template(
     signal_df = _handle_sign_signal(ssc, signal_df)
 
     return signal_df
+
+
+def get_backtest_algorithm(pos_num: int):
+    def backtest_algorithm(c: Context):
+        if c.volume == 0 and c.signal > 0:
+            return c.target_pct_port(1 / pos_num)  # Buy
+        elif c.volume > 0 and c.signal < 0:
+            return c.target_pct_port(0)  # Sell
+        else:
+            return 0  # Do nothing
+
+    return backtest_algorithm
