@@ -20,7 +20,7 @@ def get_valuation_metrics(
 
     ebitda = ssc.get_data(field="ebitda", timeframe="ytd")
     # EV/EBITDA
-    ev_div_ebitda = ev / ebitda
+    ev_ebitda = ev / ebitda
 
     # FCF Yield (free_cash_flow = net_operating - net_investing, FCF Yield = free_cash_flow / market cap)
     net_operating = ssc.get_data(field="net_operating", timeframe="yearly")
@@ -28,7 +28,7 @@ def get_valuation_metrics(
     free_cash_flow = net_operating - net_investing
     fcf_yield = free_cash_flow / mkt_cap
 
-    return pb, pe, ev_div_ebitda, fcf_yield
+    return pb, pe, ev_ebitda, fcf_yield
 
 
 def get_score(
