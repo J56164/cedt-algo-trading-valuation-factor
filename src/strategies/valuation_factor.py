@@ -3,8 +3,6 @@ import pandas as pd
 import ezyquant as ez
 from ezyquant.backtesting import Context
 
-from src.utils import z_score
-
 
 def get_valuation_metrics(
     ssc: ez.SETSignalCreator,
@@ -31,104 +29,105 @@ def get_valuation_metrics(
     return pb, pe, ev_ebitda, fcf_yield
 
 
+def get_pb_score(ssc: ez.SETSignalCreator):
+    # Lower PB = better
+    pb = ssc.get_data(field="pb", timeframe="daily")
+    return ((pb.mean() / pb).clip(lower=0.5, upper=1.2) - 0.5) / (1.2 - 0.5)
+
+
+def get_pe_score(ssc: ez.SETSignalCreator):
+    # Lower PE = better
+    pe = ssc.get_data(field="pe", timeframe="daily")
+    return ((pe.mean() / pe).clip(lower=0.5, upper=1.2) - 0.5) / (1.2 - 0.5)
+
+
+def get_fcf_yield_score(ssc: ez.SETSignalCreator):
+    # Higher free cash flow yield = better
+
+    # FCF Yield (free_cash_flow = net_operating - net_investing, FCF Yield = free_cash_flow / market cap)
+    mkt_cap = ssc.get_data(field="mkt_cap", timeframe="daily")
+    net_operating = ssc.get_data(field="net_operating", timeframe="yearly")
+    net_investing = ssc.get_data(field="net_investing", timeframe="yearly")
+    free_cash_flow = net_operating - net_investing
+    fcf_yield = free_cash_flow / mkt_cap
+
+    return (fcf_yield / 0.04).clip(lower=0, upper=1)
+
+
+def get_rsi_score(
+    ssc: ez.SETSignalCreator,
+    close_df: pd.DataFrame,
+):
+    rsi = ssc.ta.rsi(close_df, window=14)
+
+    rsi_score = pd.DataFrame()
+    for symbol in rsi.columns:
+        rsi_score[symbol] = pd.cut(
+            rsi[symbol],
+            bins=[0, 30, 40, 50, 60, 70, float("inf")],
+            labels=[1, 0.8, 0.6, 0.5, 0.4, 0.2],
+        )
+    return rsi_score.astype("float64")
+
+
 def get_score(
-    pb: pd.DataFrame,
-    pe: pd.DataFrame,
-    ev_div_ebitda: pd.DataFrame,
-    fcf_yield: pd.DataFrame,
-):
-    return -z_score(pb) + -z_score(pe) + -z_score(ev_div_ebitda) + z_score(fcf_yield)
-
-
-def _get_buy_signal(
-    score_df: pd.DataFrame,
-):
-    # Long top 20%
-    pct_rank = score_df.rank(axis=1, pct=True)
-    buy_signal = pd.DataFrame(
-        data=False, index=score_df.index, columns=score_df.columns
-    )
-    buy_signal[pct_rank >= 0.8] = True
-    return buy_signal
-
-
-def _get_sell_signal(
-    score_df: pd.DataFrame,
-):
-    # Short bottom 20%
-    pct_rank = score_df.rank(axis=1, pct=True)
-    sell_signal = pd.DataFrame(
-        data=False, index=score_df.index, columns=score_df.columns
-    )
-    sell_signal[pct_rank <= 0.2] = True
-    return sell_signal
-
-
-def _filter_signal(ssc: ez.SETSignalCreator, signal_df: pd.DataFrame):
-    return ssc.screen_universe(signal_df)
-
-
-def _rank_signal(
     ssc: ez.SETSignalCreator,
-    signal_df: pd.DataFrame,
-    score_df: pd.DataFrame,
+    close_df: pd.DataFrame,
 ):
-    factor_df = score_df
+    WEIGHTS = {
+        "PB_score": 4,
+        "PE_score": 2,
+        "FCF_score": 3,
+        # "momentum_score": 4,
+        "RSI_score": 3,
+        # "dividend_score": 5,
+    }
 
-    factor_df = pd.DataFrame(
-        np.where((signal_df > 0), factor_df, np.nan),
-        columns=factor_df.columns,
-        index=factor_df.index,
-    )
+    # Calculate weighted total score
+    score = get_pb_score(ssc) * WEIGHTS["PB_score"]
+    score += get_pe_score(ssc) * WEIGHTS["PE_score"]
+    score += get_fcf_yield_score(ssc) * WEIGHTS["FCF_score"]
+    score += get_rsi_score(ssc, close_df) * WEIGHTS["RSI_score"]
 
-    POS_NUM = 20  # TODO: Remove magic number
-    signal_df = ssc.rank(factor_df=score_df, quantity=POS_NUM, ascending=False)
+    score /= sum(WEIGHTS.values())
 
-    return signal_df
-
-
-# TODO: Rename function
-def _handle_sign_signal(ssc: ez.SETSignalCreator, signal_df: pd.DataFrame):
-    lookahead_signal = ssc.screen_universe(signal_df, mask_value=-1).shift(
-        -2
-    )  # TODO: Remove magic number
-
-    signal_df = pd.DataFrame(
-        np.where((lookahead_signal == -1), -1, signal_df),
-        columns=signal_df.columns,
-        index=signal_df.index,
-    )
-
-    return signal_df
+    return score
 
 
-def get_signal(
+def get_stop_loss(
     ssc: ez.SETSignalCreator,
+    close_df: pd.DataFrame,
 ):
-    pb, pe, ev_div_ebitda, fcf_yield = get_valuation_metrics(ssc)
-    score_df = get_score(pb, pe, ev_div_ebitda, fcf_yield)
-    buy_signal_df = _get_buy_signal(
-        score_df,
+    ema_150_df = ssc.ta.ema(close_df, 150)
+    ema_200_df = ssc.ta.ema(close_df, 200)
+    stop_loss = ema_150_df < ema_200_df
+    return stop_loss
+
+
+def get_signal(ssc: ez.SETSignalCreator, close_df: pd.DataFrame):
+    score = get_score(
+        ssc,
+        close_df,
     )
-    sell_signal_df = _get_sell_signal(
-        score_df,
-    )
+    # Top 20% = BUY, Bottom 20% = SELL
+    signal = pd.DataFrame()
+    for symbol in score.columns:
+        signal[symbol] = pd.cut(
+            score[symbol], bins=[0, 0.4, 0.8, 1.0], labels=["SELL", "HOLD", "BUY"]
+        )
 
-    # TODO: Remove magic number
-    signal_df = buy_signal_df.astype(int) + sell_signal_df.astype(int) * -10
+    stop_loss = get_stop_loss(ssc, close_df)
+    for symbol in score.columns:
+        signal[symbol][stop_loss[symbol]] = "SELL"
 
-    signal_df = _filter_signal(ssc, signal_df)
-    signal_df = _rank_signal(ssc, signal_df, score_df)
-    signal_df = _handle_sign_signal(ssc, signal_df)
-
-    return signal_df
+    return signal
 
 
-def get_backtest_algorithm(pos_num: int):
+def get_backtest_algorithm(pos_num=20):
     def backtest_algorithm(c: Context):
-        if c.volume == 0 and c.signal > 0:
+        if c.volume == 0 and c.signal == "BUY":
             return c.target_pct_port(1 / pos_num)  # Buy
-        elif c.volume > 0 and c.signal < 0:
+        elif c.volume > 0 and c.signal == "SELL":
             return c.target_pct_port(0)  # Sell
         else:
             return 0  # Do nothing
