@@ -58,6 +58,7 @@ def get_rsi_score(
     ssc: ez.SETSignalCreator,
     close_df: pd.DataFrame,
 ):
+    # Lower RSI = better
     rsi = ssc.ta.rsi(close_df, window=14)
 
     rsi_score = pd.DataFrame()
@@ -113,7 +114,7 @@ def get_signal(ssc: ez.SETSignalCreator, close_df: pd.DataFrame):
     signal = pd.DataFrame()
     for symbol in score.columns:
         signal[symbol] = pd.cut(
-            score[symbol], bins=[0, 0.4, 0.8, 1.0], labels=["SELL", "HOLD", "BUY"]
+            score[symbol], bins=[0, 0.2, 0.8, 1.0], labels=["SELL", "HOLD", "BUY"]
         )
 
     stop_loss = get_stop_loss(ssc, close_df)
