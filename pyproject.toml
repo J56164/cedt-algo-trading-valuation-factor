@@ -10,4 +10,8 @@ dependencies = [
     "notebook>=7.5.3",
     "pandas<3.0.0",
     "settrade-v2>=2.2.1",
+    "tvdatafeed",
 ]
+
+[tool.uv.sources]
+tvdatafeed = { git = "https://github.com/rongardF/tvdatafeed.git" }
