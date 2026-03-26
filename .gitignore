@@ -2,3 +2,7 @@ __pycache__
 .venv
 data/*
 .env
+
+# Agent skills
+.agents
+skills-lock.json
